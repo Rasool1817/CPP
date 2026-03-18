@@ -1,0 +1,461 @@
+service: warranty-tracker-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-1
+  memorySize: 256
+  timeout: 30
+  environment:
+    PRODUCTS_TABLE: ${self:service}-products-${self:provider.stage}
+    WARRANTIES_TABLE: ${self:service}-warranties-${self:provider.stage}
+    SERVICE_HISTORY_TABLE: ${self:service}-service-history-${self:provider.stage}
+    DOCUMENTS_BUCKET: ${self:service}-documents-${self:provider.stage}
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt ProductsTable.Arn
+            - !GetAtt WarrantiesTable.Arn
+            - !GetAtt ServiceHistoryTable.Arn
+            - !Join ['/', [!GetAtt ProductsTable.Arn, 'index/*']]
+            - !Join ['/', [!GetAtt WarrantiesTable.Arn, 'index/*']]
+            - !Join ['/', [!GetAtt ServiceHistoryTable.Arn, 'index/*']]
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource:
+            - !Join ['/', [!GetAtt DocumentsBucket.Arn, '*']]
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminGetUser
+          Resource:
+            - !GetAtt CognitoUserPool.Arn
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    layer: false
+    pythonBin: python3
+
+package:
+  individually: false
+  patterns:
+    - '!node_modules/**'
+    - '!.serverless/**'
+    - '!tests/**'
+    - '!venv/**'
+
+functions:
+  # Products
+  createProduct:
+    handler: handlers/products.create
+    events:
+      - http:
+          path: products
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  listProducts:
+    handler: handlers/products.list
+    events:
+      - http:
+          path: products
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  getProduct:
+    handler: handlers/products.get
+    events:
+      - http:
+          path: products/{id}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  updateProduct:
+    handler: handlers/products.update
+    events:
+      - http:
+          path: products/{id}
+          method: put
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  deleteProduct:
+    handler: handlers/products.delete
+    events:
+      - http:
+          path: products/{id}
+          method: delete
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  # Warranties
+  createWarranty:
+    handler: handlers/warranties.create
+    events:
+      - http:
+          path: warranties
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  listWarranties:
+    handler: handlers/warranties.list
+    events:
+      - http:
+          path: warranties
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  getWarranty:
+    handler: handlers/warranties.get
+    events:
+      - http:
+          path: warranties/{id}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  updateWarranty:
+    handler: handlers/warranties.update
+    events:
+      - http:
+          path: warranties/{id}
+          method: put
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  deleteWarranty:
+    handler: handlers/warranties.delete
+    events:
+      - http:
+          path: warranties/{id}
+          method: delete
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  # Service History
+  createServiceRecord:
+    handler: handlers/service_history.create
+    events:
+      - http:
+          path: service-history
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  listServiceHistory:
+    handler: handlers/service_history.list
+    events:
+      - http:
+          path: service-history
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  getServiceRecord:
+    handler: handlers/service_history.get
+    events:
+      - http:
+          path: service-history/{id}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  updateServiceRecord:
+    handler: handlers/service_history.update
+    events:
+      - http:
+          path: service-history/{id}
+          method: put
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  deleteServiceRecord:
+    handler: handlers/service_history.delete
+    events:
+      - http:
+          path: service-history/{id}
+          method: delete
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  # Documents
+  getUploadUrl:
+    handler: handlers/documents.get_upload_url
+    events:
+      - http:
+          path: documents/upload-url
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  getDownloadUrl:
+    handler: handlers/documents.get_download_url
+    events:
+      - http:
+          path: documents/download-url/{key}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  deleteDocument:
+    handler: handlers/documents.delete_document
+    events:
+      - http:
+          path: documents/{key}
+          method: delete
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
+  # Reminders (Scheduled)
+  checkExpiringWarranties:
+    handler: handlers/reminders.check_expiring
+    events:
+      - schedule:
+          rate: rate(1 day)
+          enabled: true
+
+resources:
+  Resources:
+    # DynamoDB Tables
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PRODUCTS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user_id-index
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    WarrantiesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.WARRANTIES_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: product_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user_id-index
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: product_id-index
+            KeySchema:
+              - AttributeName: product_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    ServiceHistoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SERVICE_HISTORY_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: product_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user_id-index
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: product_id-index
+            KeySchema:
+              - AttributeName: product_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    # S3 Bucket for Frontend Static Website Hosting
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: warranty-tracker-frontend-${self:provider.stage}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: index.html
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref FrontendBucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action: s3:GetObject
+              Resource: !Join ['/', [!GetAtt FrontendBucket.Arn, '*']]
+
+    # S3 Bucket for Documents
+    DocumentsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.DOCUMENTS_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, PUT, POST, DELETE]
+              AllowedOrigins: ['*']
+              MaxAge: 3000
+
+    # Cognito User Pool
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-user-pool-${self:provider.stage}
+        AutoVerifiedAttributes:
+          - email
+        UsernameAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireUppercase: true
+            RequireSymbols: false
+        Schema:
+          - Name: name
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-client-${self:provider.stage}
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_SRP_AUTH
+        GenerateSecret: false
+        PreventUserExistenceErrors: ENABLED
+
+    # API Gateway Authorizer
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoAuthorizer
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        RestApiId: !Ref ApiGatewayRestApi
+        ProviderARNs:
+          - !GetAtt CognitoUserPool.Arn
+
+  Outputs:
+    ApiUrl:
+      Description: API Gateway endpoint URL
+      Value: !Sub https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}
+    UserPoolId:
+      Description: Cognito User Pool ID
+      Value: !Ref CognitoUserPool
+    UserPoolClientId:
+      Description: Cognito User Pool Client ID
+      Value: !Ref CognitoUserPoolClient
+    DocumentsBucketName:
+      Description: S3 Documents Bucket
+      Value: !Ref DocumentsBucket
+    FrontendBucketName:
+      Description: S3 Frontend Bucket
+      Value: !Ref FrontendBucket
+    FrontendUrl:
+      Description: Frontend Website URL
+      Value: !GetAtt FrontendBucket.WebsiteURL

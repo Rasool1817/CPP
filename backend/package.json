@@ -1,0 +1,9 @@
+{
+  "name": "warranty-tracker-backend",
+  "version": "1.0.0",
+  "description": "Warranty Tracker Backend - Serverless",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.0.0"
+  }
+}

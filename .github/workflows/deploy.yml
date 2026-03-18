@@ -1,0 +1,138 @@
+name: Deploy Warranty Tracker
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: eu-west-1
+  FRONTEND_BUCKET: warranty-tracker-frontend-prod
+
+jobs:
+  test-library:
+    name: Test PyPI Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install library
+        run: |
+          cd warranty-tracker-lib
+          pip install -e .
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          cd warranty-tracker-lib
+          python -m pytest tests/ -v
+
+  deploy-backend:
+    name: Deploy Backend
+    needs: test-library
+    runs-on: ubuntu-latest
+    outputs:
+      api_url: ${{ steps.get-outputs.outputs.api_url }}
+      user_pool_id: ${{ steps.get-outputs.outputs.user_pool_id }}
+      client_id: ${{ steps.get-outputs.outputs.client_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install library
+        run: |
+          cd warranty-tracker-lib
+          pip install -e .
+
+      - name: Deploy with Serverless
+        run: |
+          cd backend
+          npm install
+          npx serverless deploy --stage prod
+
+      - name: Get CloudFormation Outputs
+        id: get-outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name warranty-tracker-api-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name warranty-tracker-api-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+          CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name warranty-tracker-api-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "user_pool_id=$USER_POOL_ID" >> $GITHUB_OUTPUT
+          echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+          echo "API URL: $API_URL"
+          echo "User Pool ID: $USER_POOL_ID"
+          echo "Client ID: $CLIENT_ID"
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ needs.deploy-backend.outputs.api_url }}
+          VITE_COGNITO_USER_POOL_ID: ${{ needs.deploy-backend.outputs.user_pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ needs.deploy-backend.outputs.client_id }}
+          VITE_AWS_REGION: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ env.FRONTEND_BUCKET }} --delete
+
+      - name: Print Frontend URL
+        run: |
+          echo "Frontend deployed to: http://${{ env.FRONTEND_BUCKET }}.s3-website-${{ env.AWS_REGION }}.amazonaws.com"

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warranty-tracker-nci"
+version = "1.0.0"
+description = "A library for managing product warranties, documents, and expiry reminders"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Rasool Basha Durbesula", email = "x24205478@student.ncirl.ie"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/Rasool1817/CPP"
+Repository = "https://github.com/Rasool1817/CPP"
+
+[tool.setuptools.packages.find]
+include = ["warranty_tracker*"]
