@@ -56,9 +56,18 @@ export const uploadFileToS3 = async (file, warrantyId) => {
     warranty_id: warrantyId,
   });
 
-  await axios.put(data.upload_url, file, {
-    headers: { 'Content-Type': data.content_type },
+  // Use fetch instead of axios to avoid adding extra headers that break CORS
+  const uploadResponse = await fetch(data.upload_url, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': data.content_type,
+    },
   });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+  }
 
   return data.s3_key;
 };
