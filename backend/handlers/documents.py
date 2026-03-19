@@ -36,18 +36,23 @@ def get_upload_url(event, context):
     content_type = doc_processor.get_content_type(filename)
     metadata = doc_processor.extract_metadata(filename, file_size)
 
-    presigned_url = s3_client.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": DOCUMENTS_BUCKET,
-            "Key": s3_key,
-            "ContentType": content_type,
+    # Generate presigned POST (more CORS-friendly than presigned PUT)
+    presigned_post = s3_client.generate_presigned_post(
+        Bucket=DOCUMENTS_BUCKET,
+        Key=s3_key,
+        Fields={
+            "Content-Type": content_type,
         },
+        Conditions=[
+            {"Content-Type": content_type},
+            ["content-length-range", 1, 10 * 1024 * 1024],
+        ],
         ExpiresIn=3600,
     )
 
     return success({
-        "upload_url": presigned_url,
+        "upload_url": presigned_post["url"],
+        "upload_fields": presigned_post["fields"],
         "s3_key": s3_key,
         "content_type": content_type,
         "metadata": metadata,

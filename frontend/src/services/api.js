@@ -48,7 +48,7 @@ export const getUploadUrl = (data) => api.post('/documents/upload-url', data);
 export const getDownloadUrl = (key) => api.get(`/documents/download-url/${encodeURIComponent(key)}`);
 export const deleteDocument = (key) => api.delete(`/documents/${encodeURIComponent(key)}`);
 
-// Upload file directly to S3 using pre-signed URL
+// Upload file directly to S3 using presigned POST
 export const uploadFileToS3 = async (file, warrantyId) => {
   const { data } = await getUploadUrl({
     filename: file.name,
@@ -56,13 +56,18 @@ export const uploadFileToS3 = async (file, warrantyId) => {
     warranty_id: warrantyId,
   });
 
-  // Use fetch instead of axios to avoid adding extra headers that break CORS
+  // Build multipart form data with presigned POST fields
+  const formData = new FormData();
+  // Add all presigned fields first (order matters)
+  Object.entries(data.upload_fields).forEach(([key, value]) => {
+    formData.append(key, value);
+  });
+  // File must be the last field
+  formData.append('file', file);
+
   const uploadResponse = await fetch(data.upload_url, {
-    method: 'PUT',
-    body: file,
-    headers: {
-      'Content-Type': data.content_type,
-    },
+    method: 'POST',
+    body: formData,
   });
 
   if (!uploadResponse.ok) {
