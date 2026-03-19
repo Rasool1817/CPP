@@ -48,28 +48,28 @@ export const getUploadUrl = (data) => api.post('/documents/upload-url', data);
 export const getDownloadUrl = (key) => api.get(`/documents/download-url/${encodeURIComponent(key)}`);
 export const deleteDocument = (key) => api.delete(`/documents/${encodeURIComponent(key)}`);
 
-// Upload file directly to S3 using presigned PUT URL
+// Upload file through Lambda (no CORS issues - goes through API Gateway)
 export const uploadFileToS3 = async (file, warrantyId) => {
-  const { data } = await getUploadUrl({
+  // Read file as base64
+  const base64Data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1]; // Remove data:...;base64, prefix
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  // Upload through Lambda endpoint
+  const { data } = await api.post('/documents/upload', {
     filename: file.name,
     file_size: file.size,
+    file_data: base64Data,
     warranty_id: warrantyId,
   });
 
-  // Use XMLHttpRequest to upload - avoids CORS preflight issues
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', data.upload_url, true);
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(data.s3_key);
-      } else {
-        reject(new Error(`Upload failed: ${xhr.statusText}`));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Upload failed: network error'));
-    xhr.send(file);
-  });
+  return data.s3_key;
 };
 
 export default api;

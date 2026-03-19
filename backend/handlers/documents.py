@@ -1,6 +1,7 @@
-"""Lambda handlers for document upload/download via S3 pre-signed URLs."""
+"""Lambda handlers for document upload/download via S3."""
 
 import os
+import base64
 import boto3
 
 import sys
@@ -17,8 +18,47 @@ DOCUMENTS_BUCKET = os.environ.get("DOCUMENTS_BUCKET", "warranty-tracker-api-docu
 doc_processor = DocumentProcessor()
 
 
+def upload_document(event, context):
+    """Upload a document directly through Lambda to S3."""
+    user_id = get_user_id(event)
+    if not user_id:
+        return error("Unauthorized", 401)
+
+    body = parse_body(event)
+    filename = body.get("filename", "")
+    file_data = body.get("file_data", "")
+    file_size = body.get("file_size", 0)
+    warranty_id = body.get("warranty_id", "general")
+
+    if not file_data:
+        return error("No file data provided")
+
+    validation = doc_processor.validate_document(filename, file_size)
+    if not validation["valid"]:
+        return error("; ".join(validation["errors"]))
+
+    s3_key = doc_processor.generate_s3_key(user_id, warranty_id, filename)
+    content_type = doc_processor.get_content_type(filename)
+    metadata = doc_processor.extract_metadata(filename, file_size)
+
+    # Decode base64 file data and upload to S3
+    file_bytes = base64.b64decode(file_data)
+    s3_client.put_object(
+        Bucket=DOCUMENTS_BUCKET,
+        Key=s3_key,
+        Body=file_bytes,
+        ContentType=content_type,
+    )
+
+    return success({
+        "s3_key": s3_key,
+        "content_type": content_type,
+        "metadata": metadata,
+    }, 201)
+
+
 def get_upload_url(event, context):
-    """Generate a pre-signed S3 URL for uploading a document."""
+    """Generate a pre-signed S3 URL for uploading a document (fallback)."""
     user_id = get_user_id(event)
     if not user_id:
         return error("Unauthorized", 401)
@@ -36,8 +76,6 @@ def get_upload_url(event, context):
     content_type = doc_processor.get_content_type(filename)
     metadata = doc_processor.extract_metadata(filename, file_size)
 
-    # Generate presigned PUT URL without ContentType in signature
-    # so the browser can upload without a CORS preflight
     presigned_url = s3_client.generate_presigned_url(
         "put_object",
         Params={

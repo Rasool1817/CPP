@@ -234,6 +234,18 @@ functions:
             authorizerId: !Ref ApiGatewayAuthorizer
 
   # Documents
+  uploadDocument:
+    handler: handlers/documents.upload_document
+    timeout: 30
+    events:
+      - http:
+          path: documents/upload
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+
   getUploadUrl:
     handler: handlers/documents.get_upload_url
     events:
