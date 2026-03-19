@@ -78,4 +78,4 @@ The GitHub Actions pipeline runs automatically on every push to `main`:
 
 ## Author
 
-Rasool Basha Durbesula (x24205478) - MSc Cloud Computing, National College of Ireland
+Rasool Basha Durbesula (x24205478) - MSc Cloud Computing, National College of Ireland, Dublin
