@@ -391,8 +391,14 @@ resources:
         CorsConfiguration:
           CorsRules:
             - AllowedHeaders: ['*']
-              AllowedMethods: [GET, PUT, POST, DELETE]
-              AllowedOrigins: ['*']
+              AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
+              AllowedOrigins:
+                - 'http://warranty-tracker-frontend-prod.s3-website-eu-west-1.amazonaws.com'
+                - 'http://warranty-tracker-frontend-dev.s3-website-eu-west-1.amazonaws.com'
+                - '*'
+              ExposedHeaders:
+                - 'ETag'
+                - 'x-amz-request-id'
               MaxAge: 3000
 
     # Cognito User Pool
