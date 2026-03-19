@@ -48,7 +48,7 @@ export const getUploadUrl = (data) => api.post('/documents/upload-url', data);
 export const getDownloadUrl = (key) => api.get(`/documents/download-url/${encodeURIComponent(key)}`);
 export const deleteDocument = (key) => api.delete(`/documents/${encodeURIComponent(key)}`);
 
-// Upload file directly to S3 using presigned POST
+// Upload file directly to S3 using presigned PUT URL
 export const uploadFileToS3 = async (file, warrantyId) => {
   const { data } = await getUploadUrl({
     filename: file.name,
@@ -56,25 +56,20 @@ export const uploadFileToS3 = async (file, warrantyId) => {
     warranty_id: warrantyId,
   });
 
-  // Build multipart form data with presigned POST fields
-  const formData = new FormData();
-  // Add all presigned fields first (order matters)
-  Object.entries(data.upload_fields).forEach(([key, value]) => {
-    formData.append(key, value);
+  // Use XMLHttpRequest to upload - avoids CORS preflight issues
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', data.upload_url, true);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data.s3_key);
+      } else {
+        reject(new Error(`Upload failed: ${xhr.statusText}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Upload failed: network error'));
+    xhr.send(file);
   });
-  // File must be the last field
-  formData.append('file', file);
-
-  const uploadResponse = await fetch(data.upload_url, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-  }
-
-  return data.s3_key;
 };
 
 export default api;
