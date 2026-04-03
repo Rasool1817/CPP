@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { createWarranty, listProducts } from '../services/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getWarranty, updateWarranty, listProducts, getDownloadUrl } from '../services/api';
 import FileUpload from '../components/FileUpload';
+import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-export default function AddWarranty() {
+export default function EditWarranty() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
-    product_id: searchParams.get('product_id') || '',
+    product_id: '',
     provider: '',
     start_date: '',
     end_date: '',
@@ -21,8 +23,27 @@ export default function AddWarranty() {
   });
 
   useEffect(() => {
-    listProducts().then(({ data }) => setProducts(data)).catch(() => {});
-  }, []);
+    Promise.all([getWarranty(id), listProducts()])
+      .then(([wRes, pRes]) => {
+        const w = wRes.data;
+        setForm({
+          product_id: w.product_id || '',
+          provider: w.provider || '',
+          start_date: w.start_date || '',
+          end_date: w.end_date || '',
+          warranty_type: w.warranty_type || 'manufacturer',
+          coverage_details: w.coverage_details || '',
+          document_key: w.document_key || '',
+          notes: w.notes || '',
+        });
+        setProducts(pRes.data);
+      })
+      .catch(() => {
+        toast.error('Failed to load warranty');
+        navigate('/warranties');
+      })
+      .finally(() => setLoading(false));
+  }, [id, navigate]);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -30,21 +51,43 @@ export default function AddWarranty() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
     try {
-      await createWarranty(form);
-      toast.success('Warranty added');
+      await updateWarranty(id, form);
+      toast.success('Warranty updated');
       navigate('/warranties');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to add warranty');
+      toast.error(err.response?.data?.error || 'Failed to update warranty');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
+  }
+
+  async function handleViewDocument() {
+    try {
+      const { data } = await getDownloadUrl(form.document_key);
+      window.open(data.download_url, '_blank');
+    } catch {
+      toast.error('Failed to get document URL');
+    }
+  }
+
+  function getDocumentFileName() {
+    if (!form.document_key) return '';
+    return form.document_key.split('/').pop();
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Add Warranty</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Warranty</h1>
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Product *</label>
@@ -93,9 +136,25 @@ export default function AddWarranty() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Warranty Document</label>
+          {form.document_key && (
+            <div className="flex items-center justify-between border rounded-lg p-4 bg-gray-50 mb-3">
+              <div className="flex items-center space-x-3">
+                <DocumentArrowDownIcon className="h-8 w-8 text-indigo-500" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{getDocumentFileName()}</p>
+                  <p className="text-xs text-green-600">Document attached</p>
+                </div>
+              </div>
+              <button type="button" onClick={handleViewDocument}
+                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                View / Download
+              </button>
+            </div>
+          )}
           <FileUpload
             warrantyId={form.product_id || 'temp'}
             onUploadComplete={(key) => setForm({ ...form, document_key: key })}
+            existingFileName=""
           />
         </div>
 
@@ -110,9 +169,9 @@ export default function AddWarranty() {
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition">
             Cancel
           </button>
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={saving}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 transition">
-            {loading ? 'Adding...' : 'Add Warranty'}
+            {saving ? 'Saving...' : 'Update Warranty'}
           </button>
         </div>
       </form>

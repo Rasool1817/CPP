@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 
 export default function Register() {
   const [step, setStep] = useState('register');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -16,7 +17,7 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signUp(email, password, name);
+      await signUp(email, password, `${firstName.trim()} ${lastName.trim()}`);
       toast.success('Registration successful! Check your email for the verification code.');
       setStep('confirm');
     } catch (err) {
@@ -78,11 +79,21 @@ export default function Register() {
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Create Account</h2>
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
+            <label className="block text-sm font-medium text-gray-700">First Name</label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Last Name</label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-3 py-2"
             />

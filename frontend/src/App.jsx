@@ -10,6 +10,7 @@ import EditProduct from './pages/EditProduct';
 import ProductDetail from './pages/ProductDetail';
 import Warranties from './pages/Warranties';
 import AddWarranty from './pages/AddWarranty';
+import EditWarranty from './pages/EditWarranty';
 import ServiceHistory from './pages/ServiceHistory';
 import Reminders from './pages/Reminders';
 
@@ -28,6 +29,7 @@ function App() {
           <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
           <Route path="/warranties" element={<ProtectedRoute><Warranties /></ProtectedRoute>} />
           <Route path="/warranties/add" element={<ProtectedRoute><AddWarranty /></ProtectedRoute>} />
+          <Route path="/warranties/edit/:id" element={<ProtectedRoute><EditWarranty /></ProtectedRoute>} />
           <Route path="/service-history" element={<ProtectedRoute><ServiceHistory /></ProtectedRoute>} />
           <Route path="/reminders" element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
         </Routes>

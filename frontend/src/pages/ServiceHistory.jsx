@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listServiceHistory, createServiceRecord, deleteServiceRecord, listProducts } from '../services/api';
-import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { listServiceHistory, createServiceRecord, updateServiceRecord, deleteServiceRecord, listProducts } from '../services/api';
+import { TrashIcon, PlusIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 export default function ServiceHistory() {
@@ -11,6 +11,8 @@ export default function ServiceHistory() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const [form, setForm] = useState({
     product_id: productId || '',
     service_date: '',
@@ -36,6 +38,10 @@ export default function ServiceHistory() {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  function handleEditChange(e) {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     try {
@@ -46,6 +52,29 @@ export default function ServiceHistory() {
       toast.success('Service record added');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to add record');
+    }
+  }
+
+  function startEdit(record) {
+    setEditingId(record.id);
+    setEditForm({
+      service_date: record.service_date || '',
+      service_type: record.service_type || 'Repair',
+      description: record.description || '',
+      provider: record.provider || '',
+      cost: record.cost || '',
+      notes: record.notes || '',
+    });
+  }
+
+  async function handleEditSave(id) {
+    try {
+      const { data } = await updateServiceRecord(id, editForm);
+      setRecords(records.map((r) => (r.id === id ? { ...r, ...data } : r)));
+      setEditingId(null);
+      toast.success('Record updated');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update record');
     }
   }
 
@@ -163,18 +192,59 @@ export default function ServiceHistory() {
             <tbody className="divide-y divide-gray-200">
               {records.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">{r.service_date}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{getProductName(r.product_id)}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">{r.service_type}</span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{r.description}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{r.cost ? `$${r.cost}` : '-'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleDelete(r.id)} className="text-gray-400 hover:text-red-600">
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                  </td>
+                  {editingId === r.id ? (
+                    <>
+                      <td className="px-6 py-4">
+                        <input type="date" name="service_date" value={editForm.service_date} onChange={handleEditChange}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-2 py-1 text-sm" />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{getProductName(r.product_id)}</td>
+                      <td className="px-6 py-4">
+                        <select name="service_type" value={editForm.service_type} onChange={handleEditChange}
+                          className="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-2 py-1 text-sm">
+                          <option value="Repair">Repair</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Inspection">Inspection</option>
+                          <option value="Replacement">Replacement</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-4">
+                        <input name="description" value={editForm.description} onChange={handleEditChange}
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-2 py-1 text-sm" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input type="number" step="0.01" name="cost" value={editForm.cost} onChange={handleEditChange}
+                          className="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border px-2 py-1 text-sm" />
+                      </td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button onClick={() => handleEditSave(r.id)} className="text-green-600 hover:text-green-800">
+                          <CheckIcon className="h-5 w-5 inline" />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">
+                          <XMarkIcon className="h-5 w-5 inline" />
+                        </button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-6 py-4 text-sm text-gray-900">{r.service_date}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{getProductName(r.product_id)}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">{r.service_type}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{r.description}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{r.cost ? `$${r.cost}` : '-'}</td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button onClick={() => startEdit(r)} className="text-gray-400 hover:text-indigo-600">
+                          <PencilSquareIcon className="h-5 w-5 inline" />
+                        </button>
+                        <button onClick={() => handleDelete(r.id)} className="text-gray-400 hover:text-red-600">
+                          <TrashIcon className="h-5 w-5 inline" />
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

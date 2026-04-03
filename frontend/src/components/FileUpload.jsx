@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, DocumentIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { uploadFileToS3 } from '../services/api';
 import toast from 'react-hot-toast';
 
 const ALLOWED_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
 const MAX_SIZE_MB = 10;
 
-export default function FileUpload({ warrantyId, onUploadComplete }) {
+export default function FileUpload({ warrantyId, onUploadComplete, existingFileName }) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState(existingFileName || '');
 
   async function handleFile(file) {
     if (!file) return;
@@ -27,6 +28,7 @@ export default function FileUpload({ warrantyId, onUploadComplete }) {
     setUploading(true);
     try {
       const s3Key = await uploadFileToS3(file, warrantyId);
+      setFileName(file.name);
       toast.success('File uploaded successfully');
       if (onUploadComplete) onUploadComplete(s3Key);
     } catch (err) {
@@ -41,6 +43,28 @@ export default function FileUpload({ warrantyId, onUploadComplete }) {
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     handleFile(file);
+  }
+
+  function handleRemove() {
+    setFileName('');
+    if (onUploadComplete) onUploadComplete('');
+  }
+
+  if (fileName) {
+    return (
+      <div className="flex items-center justify-between border rounded-lg p-4 bg-gray-50">
+        <div className="flex items-center space-x-3">
+          <DocumentIcon className="h-8 w-8 text-indigo-500" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">{fileName}</p>
+            <p className="text-xs text-green-600">Uploaded successfully</p>
+          </div>
+        </div>
+        <button onClick={handleRemove} className="text-gray-400 hover:text-red-600 transition" title="Remove file">
+          <XMarkIcon className="h-5 w-5" />
+        </button>
+      </div>
+    );
   }
 
   return (
