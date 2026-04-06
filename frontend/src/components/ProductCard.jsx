@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
 import { TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 
-export default function ProductCard({ product, onDelete }) {
+export default function ProductCard({ product, onDelete, onClick }) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition cursor-pointer"
+    >
       <div className="flex justify-between items-start">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
@@ -21,21 +24,17 @@ export default function ProductCard({ product, onDelete }) {
       </div>
 
       <div className="mt-4 flex justify-between items-center">
-        <Link
-          to={`/products/${product.id}`}
-          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-        >
-          View Details
-        </Link>
+        <span className="text-indigo-600 text-sm font-medium">Click for details</span>
         <div className="flex space-x-2">
           <Link
             to={`/products/edit/${product.id}`}
+            onClick={(e) => e.stopPropagation()}
             className="text-gray-400 hover:text-indigo-600 transition"
           >
             <PencilSquareIcon className="h-5 w-5" />
           </Link>
           <button
-            onClick={() => onDelete(product.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
             className="text-gray-400 hover:text-red-600 transition"
           >
             <TrashIcon className="h-5 w-5" />
