@@ -6,6 +6,7 @@ A cloud-native warranty and product tracking application built on AWS serverless
 
 This application enables users to register products, manage warranty information, upload supporting documents, track service history, and receive automated reminders for expiring warranties. Built entirely on Amazon Web Services using a serverless architecture.
 
+
 ## AWS Services Used (6)
 
 | Service | Purpose |
