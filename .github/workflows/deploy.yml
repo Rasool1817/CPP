@@ -95,6 +95,14 @@ jobs:
           echo "User Pool ID: $USER_POOL_ID"
           echo "Client ID: $CLIENT_ID"
 
+      - name: Seed demo data
+        run: |
+          API_URL="${{ steps.get-outputs.outputs.api_url }}"
+          echo "Seeding demo data at $API_URL/seed"
+          curl -s -X POST "$API_URL/seed" \
+            -H "Content-Type: application/json" \
+            --max-time 30 || echo "Seed request completed (may already be seeded)"
+
   deploy-frontend:
     name: Deploy Frontend
     needs: deploy-backend

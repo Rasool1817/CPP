@@ -30,6 +30,18 @@ export default function Login() {
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Sign In</h2>
+
+        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-md">
+          <p className="text-xs text-indigo-600 font-medium mb-2">Demo Credentials</p>
+          <button
+            type="button"
+            onClick={() => { setEmail('demo@warranty.demo'); setPassword('Demo1234!'); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-300 rounded-full text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+          >
+            demo@warranty.demo / Demo1234!
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>

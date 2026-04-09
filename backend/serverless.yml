@@ -44,6 +44,8 @@ provider:
         - Effect: Allow
           Action:
             - cognito-idp:AdminGetUser
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
           Resource:
             - !GetAtt CognitoUserPool.Arn
 
@@ -65,6 +67,15 @@ package:
     - '!venv/**'
 
 functions:
+  # Seed Demo Data
+  seedData:
+    handler: handlers/seed.handler
+    events:
+      - http:
+          path: seed
+          method: post
+          cors: true
+
   # Products
   createProduct:
     handler: handlers/products.create
